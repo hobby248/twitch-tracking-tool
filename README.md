@@ -34,7 +34,7 @@ dist\Data
 
 1. 雙擊 `dist\Twitch 追台工具.exe`。
 2. 在 Twitch Developer Console 將程式顯示的 `OAuth Redirect URL` 加到 App 的 Redirect URL。
-3. 在「台主資訊登入」貼上 Twitch Client ID。
+3. 在「登入」貼上 Twitch Client ID。
 4. 點「登入取得 Token」，完成 Twitch OAuth 登入。
 5. 在「新增台主」輸入一個或多個帳號，例如 `twitch, riotgames`。
 6. 點「加入追蹤」。
