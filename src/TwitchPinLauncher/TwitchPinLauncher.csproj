@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>TwitchPin</AssemblyName>
+    <RootNamespace>TwitchPinLauncher</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\index.html" LogicalName="wwwroot.index.html" />
+    <EmbeddedResource Include="..\..\styles.css" LogicalName="wwwroot.styles.css" />
+    <EmbeddedResource Include="..\..\app.js" LogicalName="wwwroot.app.js" />
+  </ItemGroup>
+</Project>

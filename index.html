@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Twitch 追台工具 v0.10.0</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="appShell" class="app-shell settings-shell">
+    <main class="sidebar settings-page" aria-label="設定">
+      <header class="app-header">
+        <div class="app-mark" aria-hidden="true">T</div>
+        <div>
+          <h1>Twitch 追台工具 <span class="version-badge">v0.10.0</span></h1>
+          <p>一次追多個台主，未開台自動隱藏，開台後再顯示。</p>
+        </div>
+      </header>
+
+      <section class="panel" aria-labelledby="track-title">
+        <div class="panel-heading">
+          <h2 id="track-title">追蹤清單</h2>
+          <span id="trackBadge" class="badge badge-muted">0 台</span>
+        </div>
+
+        <form id="trackForm" class="track-form">
+          <label class="field">
+            <span>新增台主</span>
+            <textarea id="channelInput" rows="3" autocomplete="off" spellcheck="false" placeholder="可輸入多個，例如：twitch, riotgames"></textarea>
+          </label>
+          <button id="addButton" class="button button-primary" type="submit">加入追蹤</button>
+        </form>
+
+        <div class="button-row">
+          <button id="refreshButton" class="button button-secondary" type="button" hidden>重載非直播</button>
+          <button id="clearAllButton" class="button button-danger" type="button">清空清單</button>
+        </div>
+
+        <dl class="status-list">
+          <div>
+            <dt>直播中</dt>
+            <dd id="onlineCount">0</dd>
+          </div>
+          <div>
+            <dt>離線</dt>
+            <dd id="offlineCount">原站</dd>
+          </div>
+        </dl>
+
+        <div id="trackedList" class="tracked-list" aria-label="已追蹤台主"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="token-title">
+        <div class="panel-heading">
+          <h2 id="token-title">登入</h2>
+          <span id="tokenStatus" class="badge badge-muted">未設定</span>
+        </div>
+
+        <label class="field">
+          <span>Twitch Client ID</span>
+          <input id="clientIdInput" type="text" autocomplete="off" spellcheck="false" placeholder="貼上 Twitch Client ID">
+        </label>
+
+        <div class="redirect-box">
+          <span>OAuth Redirect URL</span>
+          <code id="oauthRedirectUrl">http://localhost:5173/auth-callback</code>
+        </div>
+
+        <label class="field">
+          <span>Twitch Access Token</span>
+          <input id="tokenInput" type="password" autocomplete="off" spellcheck="false" placeholder="登入成功後會自動填入，也可手動貼上">
+        </label>
+
+        <div class="button-row">
+          <button id="saveClientIdButton" class="button button-secondary" type="button">儲存 Client ID</button>
+          <button id="loginWithTwitchButton" class="button button-primary" type="button">登入取得 Token</button>
+          <button id="saveTokenButton" class="button button-primary" type="button">儲存 Token</button>
+          <button id="refreshInfoButton" class="button button-secondary" type="button">更新台主資訊</button>
+          <button id="clearTokenButton" class="button button-danger" type="button">清除 Token</button>
+        </div>
+        <p id="tokenHelper" class="helper-text">播放與忠誠點仍使用 Twitch 原站頁；Token 只用來查台主資訊，不用於內嵌播放器。程式會定時嘗試恢復暫停的原站影片。</p>
+      </section>
+
+      <section class="panel" aria-labelledby="viewer-title">
+        <div class="panel-heading">
+          <h2 id="viewer-title">觀看設定</h2>
+        </div>
+
+        <label class="toggle-row">
+          <input id="navigationLockToggle" type="checkbox">
+          <span>
+            <strong>固定每個台主頁</strong>
+            <small>開啟後，每個直播格只允許停在自己的 Twitch 台主頁，點到其他網頁會被擋回。</small>
+          </span>
+        </label>
+
+        <div class="volume-control">
+          <div class="panel-heading">
+            <strong>程式整體音量</strong>
+            <span id="volumeValue" class="badge badge-muted">1%</span>
+          </div>
+          <input id="volumeSlider" type="range" min="0" max="100" step="1" value="1" aria-label="程式整體音量">
+          <div class="button-row">
+            <button id="muteButton" class="button button-secondary" type="button" aria-pressed="false">一鍵靜音</button>
+          </div>
+          <p class="helper-text">調整整個程式的 Windows 音訊音量，不直接改 Twitch 網頁播放器音量。</p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="tampermonkey-title">
+        <div class="panel-heading">
+          <h2 id="tampermonkey-title">Tampermonkey</h2>
+        </div>
+
+        <div class="button-row">
+          <button id="openTampermonkeyDashboardButton" class="button button-secondary" type="button">檢查狀態</button>
+        </div>
+
+        <label class="field">
+          <span>安裝腳本網址</span>
+          <input id="userscriptUrlInput" type="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/script.user.js">
+        </label>
+
+        <div class="button-row">
+          <button id="installUserscriptButton" class="button button-primary" type="button">開啟安裝頁</button>
+        </div>
+        <p class="helper-text">需先將解壓縮的 Tampermonkey 放到 dist\Extensions\Tampermonkey，且第一層要有 manifest.json。WebView2 可載入擴充功能，但 Microsoft Edge 會封鎖 chrome-extension 內部管理頁；請使用 .user.js 腳本網址開啟安裝頁。請只安裝你信任的腳本。</p>
+      </section>
+
+      <section class="panel" aria-labelledby="extensions-title">
+        <div class="panel-heading">
+          <h2 id="extensions-title">擴充功能</h2>
+        </div>
+
+        <div class="button-row">
+          <button id="openExtensionsFolderButton" class="button button-secondary" type="button">開啟資料夾</button>
+          <button id="reloadExtensionsButton" class="button button-primary" type="button">重新載入擴充</button>
+          <button id="extensionsStatusButton" class="button button-secondary" type="button">檢查狀態</button>
+        </div>
+        <p class="helper-text">把已解壓縮的擴充功能放到 dist\Extensions\擴充名稱\manifest.json。WebView2 不支援 Chrome Web Store 一鍵安裝，也不能開 chrome-extension 管理頁。</p>
+      </section>
+
+      <section class="panel" aria-labelledby="local-scripts-title">
+        <div class="panel-heading">
+          <h2 id="local-scripts-title">本機腳本</h2>
+        </div>
+
+        <div class="button-row">
+          <button id="openLocalScriptsFolderButton" class="button button-secondary" type="button">開啟資料夾</button>
+          <button id="reloadLocalScriptsButton" class="button button-primary" type="button">重新載入腳本</button>
+          <button id="localScriptsStatusButton" class="button button-secondary" type="button">檢查狀態</button>
+        </div>
+        <p class="helper-text">把 `.user.js` 或 `.js` 放到 dist\Scripts。程式會在 Twitch 原站觀看頁載入時注入腳本；不提供 Tampermonkey 的 GM_* API。</p>
+      </section>
+
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
