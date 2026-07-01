@@ -21,7 +21,7 @@ namespace TwitchPinLauncher
     internal static class Program
     {
         internal const string AppName = "Twitch 追台工具";
-        internal const string AppVersion = "v0.10.0";
+        internal const string AppVersion = "v0.11.0";
         internal const string AppDisplayName = AppName + " " + AppVersion;
         private const string MutexName = "TwitchPinLauncher.SingleInstance";
         private static SynchronizationContext uiContext;
@@ -481,7 +481,7 @@ namespace TwitchPinLauncher
             {
                 viewerEnvironment = viewerEnvironment ?? await WebViewEnvironment.GetAsync();
                 await settingsWebView.EnsureCoreWebView2Async(viewerEnvironment);
-                await BrowserExtensionLoader.TryLoadTampermonkeyAsync(settingsWebView.CoreWebView2.Profile);
+                await BrowserExtensionLoader.TryLoadAllAsync(settingsWebView.CoreWebView2.Profile);
                 settingsWebView.CoreWebView2.WebMessageReceived += delegate(object sender, CoreWebView2WebMessageReceivedEventArgs e)
                 {
                     HandleWebMessageJson(e.WebMessageAsJson);
@@ -496,28 +496,11 @@ namespace TwitchPinLauncher
 
         private void HandleWebMessageJson(string json)
         {
-            string tampermonkeyAction;
-            string userscriptUrl;
-            if (TryParseTampermonkeyMessage(json, out tampermonkeyAction, out userscriptUrl))
-            {
-                var tampermonkeyTask = HandleTampermonkeyActionAsync(tampermonkeyAction, userscriptUrl);
-                GC.KeepAlive(tampermonkeyTask);
-                return;
-            }
-
             string browserExtensionAction;
             if (TryParseBrowserExtensionMessage(json, out browserExtensionAction))
             {
                 var browserExtensionTask = HandleBrowserExtensionActionAsync(browserExtensionAction);
                 GC.KeepAlive(browserExtensionTask);
-                return;
-            }
-
-            string localUserScriptAction;
-            if (TryParseLocalUserScriptMessage(json, out localUserScriptAction))
-            {
-                var localUserScriptTask = HandleLocalUserScriptActionAsync(localUserScriptAction);
-                GC.KeepAlive(localUserScriptTask);
                 return;
             }
 
@@ -546,48 +529,6 @@ namespace TwitchPinLauncher
 
             var updateTask = UpdateViewerGridAsync(channels);
             GC.KeepAlive(updateTask);
-        }
-
-        private async Task HandleTampermonkeyActionAsync(string action, string userscriptUrl)
-        {
-            try
-            {
-                viewerEnvironment = viewerEnvironment ?? await WebViewEnvironment.GetAsync();
-                if (settingsWebView.CoreWebView2 == null)
-                {
-                    await settingsWebView.EnsureCoreWebView2Async(viewerEnvironment);
-                }
-
-                var extensionId = await BrowserExtensionLoader.TryLoadTampermonkeyAsync(settingsWebView.CoreWebView2.Profile);
-                if (String.IsNullOrEmpty(extensionId))
-                {
-                    MessageBox.Show("尚未偵測到 Tampermonkey。請先把解壓縮的 Tampermonkey 放到 dist\\Extensions\\Tampermonkey，且第一層要有 manifest.json。", Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
-                string targetUrl;
-                if (String.Equals(action, "dashboard", StringComparison.OrdinalIgnoreCase))
-                {
-                    var manifestInfo = BrowserExtensionLoader.ReadTampermonkeyManifestInfo();
-                    MessageBox.Show("Tampermonkey 已載入，但 WebView2 / Microsoft Edge 會封鎖擴充功能的內部管理頁，因此不能在程式內直接開啟 chrome-extension:// 管理頁。\n\nExtension ID: " + extensionId + "\nManifest Version: " + manifestInfo.ManifestVersion + "\nOptions Page: " + manifestInfo.OptionsPage + "\n\n請改用「安裝腳本網址」貼上 .user.js 連結開啟安裝頁；已安裝的腳本會由 Tampermonkey 在 Twitch 原站頁嘗試執行。", Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-                else
-                {
-                    if (!TryNormalizeUserscriptUrl(userscriptUrl, out targetUrl))
-                    {
-                        MessageBox.Show("請輸入 http(s) 的 .user.js 腳本網址。", Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
-                    }
-                }
-
-                var form = new ExtensionPageForm(targetUrl);
-                form.Show(this);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("開啟 Tampermonkey 頁面失敗。\n\n" + ex.Message, Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
         }
 
         private async Task HandleBrowserExtensionActionAsync(string action)
@@ -621,41 +562,6 @@ namespace TwitchPinLauncher
             catch (Exception ex)
             {
                 MessageBox.Show("擴充功能操作失敗。\n\n" + ex.Message, Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private async Task HandleLocalUserScriptActionAsync(string action)
-        {
-            try
-            {
-                if (String.Equals(action, "open-folder", StringComparison.OrdinalIgnoreCase))
-                {
-                    var directory = LocalUserScriptLoader.EnsureScriptsDirectory();
-                    Process.Start("explorer.exe", directory);
-                    return;
-                }
-
-                if (String.Equals(action, "reload", StringComparison.OrdinalIgnoreCase))
-                {
-                    LocalUserScriptLoader.Reload();
-                    foreach (var tile in new List<ViewerTile>(viewerTiles.Values))
-                    {
-                        tile.Container.Dispose();
-                    }
-
-                    viewerTiles.Clear();
-                    var channels = new List<string>(activeViewerChannels);
-                    activeViewerChannels = new List<string>();
-                    await UpdateViewerGridAsync(channels, true);
-                    MessageBox.Show(LocalUserScriptLoader.StatusText(), Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
-                MessageBox.Show(LocalUserScriptLoader.StatusText(), Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("本機腳本操作失敗。\n\n" + ex.Message, Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -709,8 +615,7 @@ namespace TwitchPinLauncher
                         viewerTiles[login] = tile;
                         await tile.View.EnsureCoreWebView2Async(viewerEnvironment);
                         ConfigureTwitchWebView(tile.View);
-                        await BrowserExtensionLoader.TryLoadTampermonkeyAsync(tile.View.CoreWebView2.Profile);
-                        await LocalUserScriptLoader.RegisterAsync(tile.View.CoreWebView2);
+                        await BrowserExtensionLoader.TryLoadAllAsync(tile.View.CoreWebView2.Profile);
                         tile.View.CoreWebView2.NavigationStarting += delegate(object sender, CoreWebView2NavigationStartingEventArgs e)
                         {
                             HandleTileNavigationStarting(tile, e);
@@ -1018,30 +923,6 @@ namespace TwitchPinLauncher
             return true;
         }
 
-        private static bool TryParseTampermonkeyMessage(string json, out string action, out string userscriptUrl)
-        {
-            action = String.Empty;
-            userscriptUrl = String.Empty;
-            if (String.IsNullOrEmpty(json) || json.IndexOf("\"tampermonkey\"", StringComparison.OrdinalIgnoreCase) < 0)
-            {
-                return false;
-            }
-
-            var actionMatch = Regex.Match(json, "\"action\"\\s*:\\s*\"(?<action>[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"", RegexOptions.IgnoreCase);
-            if (actionMatch.Success)
-            {
-                action = Regex.Unescape(actionMatch.Groups["action"].Value);
-            }
-
-            var urlMatch = Regex.Match(json, "\"url\"\\s*:\\s*\"(?<url>[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"", RegexOptions.IgnoreCase);
-            if (urlMatch.Success)
-            {
-                userscriptUrl = Regex.Unescape(urlMatch.Groups["url"].Value);
-            }
-
-            return action.Length > 0;
-        }
-
         private static bool TryParseBrowserExtensionMessage(string json, out string action)
         {
             action = String.Empty;
@@ -1057,47 +938,6 @@ namespace TwitchPinLauncher
             }
 
             return action.Length > 0;
-        }
-
-        private static bool TryParseLocalUserScriptMessage(string json, out string action)
-        {
-            action = String.Empty;
-            if (String.IsNullOrEmpty(json) || json.IndexOf("\"local-userscript\"", StringComparison.OrdinalIgnoreCase) < 0)
-            {
-                return false;
-            }
-
-            var actionMatch = Regex.Match(json, "\"action\"\\s*:\\s*\"(?<action>[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"", RegexOptions.IgnoreCase);
-            if (actionMatch.Success)
-            {
-                action = Regex.Unescape(actionMatch.Groups["action"].Value);
-            }
-
-            return action.Length > 0;
-        }
-
-        private static bool TryNormalizeUserscriptUrl(string value, out string url)
-        {
-            url = String.Empty;
-            if (String.IsNullOrWhiteSpace(value))
-            {
-                return false;
-            }
-
-            Uri uri;
-            if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out uri))
-            {
-                return false;
-            }
-
-            if (!String.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
-                && !String.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            url = uri.ToString();
-            return true;
         }
 
         private static bool TryParseAudioSettings(string json, out float volume, out bool muted)
@@ -1556,7 +1396,7 @@ namespace TwitchPinLauncher
                     grid.Controls.Add(view, index % grid.ColumnCount, index / grid.ColumnCount);
                     await view.EnsureCoreWebView2Async(environment);
                     ConfigureTwitchWebView(view);
-                    await LocalUserScriptLoader.RegisterAsync(view.CoreWebView2);
+                    await BrowserExtensionLoader.TryLoadAllAsync(view.CoreWebView2.Profile);
                     view.CoreWebView2.Navigate("https://www.twitch.tv/" + channels[index]);
                 }
             }
@@ -1577,182 +1417,6 @@ namespace TwitchPinLauncher
             view.CoreWebView2.Settings.AreDevToolsEnabled = false;
             view.CoreWebView2.Settings.IsStatusBarEnabled = false;
             view.CoreWebView2.Settings.IsZoomControlEnabled = true;
-        }
-    }
-
-    internal static class LocalUserScriptLoader
-    {
-        private static readonly object Sync = new object();
-        private static List<LocalUserScript> cachedScripts;
-
-        public static string EnsureScriptsDirectory()
-        {
-            var directory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scripts");
-            Directory.CreateDirectory(directory);
-            return directory;
-        }
-
-        public static void Reload()
-        {
-            lock (Sync)
-            {
-                cachedScripts = null;
-            }
-        }
-
-        public static async Task RegisterAsync(CoreWebView2 webView)
-        {
-            if (webView == null)
-            {
-                return;
-            }
-
-            var scripts = LoadScripts();
-            if (scripts.Count == 0)
-            {
-                return;
-            }
-
-            await webView.AddScriptToExecuteOnDocumentCreatedAsync(BuildInjectionScript(scripts));
-        }
-
-        public static string StatusText()
-        {
-            var directory = EnsureScriptsDirectory();
-            var scripts = LoadScripts();
-            var builder = new StringBuilder();
-            builder.AppendLine("本機腳本載入器已啟用。");
-            builder.AppendLine();
-            builder.AppendLine("資料夾：" + directory);
-            builder.AppendLine("目前偵測到腳本：" + scripts.Count);
-            if (scripts.Count > 0)
-            {
-                builder.AppendLine();
-                foreach (var script in scripts)
-                {
-                    builder.AppendLine("- " + script.Name);
-                }
-            }
-
-            builder.AppendLine();
-            builder.AppendLine("限制：只注入程式內 Twitch 原站觀看頁；不提供 Tampermonkey 的 GM_* API。新增或修改腳本後請按「重新載入腳本」。");
-            return builder.ToString();
-        }
-
-        private static List<LocalUserScript> LoadScripts()
-        {
-            lock (Sync)
-            {
-                if (cachedScripts != null)
-                {
-                    return new List<LocalUserScript>(cachedScripts);
-                }
-
-                var directory = EnsureScriptsDirectory();
-                var scripts = new List<LocalUserScript>();
-                foreach (var path in EnumerateScriptFiles(directory))
-                {
-                    try
-                    {
-                        var source = File.ReadAllText(path, Encoding.UTF8);
-                        if (String.IsNullOrWhiteSpace(source))
-                        {
-                            continue;
-                        }
-
-                        scripts.Add(new LocalUserScript(DisplayName(path, source), source));
-                    }
-                    catch
-                    {
-                        // Ignore unreadable scripts; the status dialog will still show the loaded count.
-                    }
-                }
-
-                cachedScripts = scripts;
-                return new List<LocalUserScript>(cachedScripts);
-            }
-        }
-
-        private static IEnumerable<string> EnumerateScriptFiles(string directory)
-        {
-            var result = new List<string>();
-            if (!Directory.Exists(directory))
-            {
-                return result;
-            }
-
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var path in Directory.GetFiles(directory, "*.user.js", SearchOption.TopDirectoryOnly))
-            {
-                if (seen.Add(path))
-                {
-                    result.Add(path);
-                }
-            }
-
-            foreach (var path in Directory.GetFiles(directory, "*.js", SearchOption.TopDirectoryOnly))
-            {
-                if (seen.Add(path))
-                {
-                    result.Add(path);
-                }
-            }
-
-            result.Sort(StringComparer.OrdinalIgnoreCase);
-            return result;
-        }
-
-        private static string DisplayName(string path, string source)
-        {
-            var nameMatch = Regex.Match(source, @"^\s*//\s*@name\s+(?<name>.+?)\s*$", RegexOptions.IgnoreCase | RegexOptions.Multiline);
-            if (nameMatch.Success && !String.IsNullOrWhiteSpace(nameMatch.Groups["name"].Value))
-            {
-                return nameMatch.Groups["name"].Value.Trim();
-            }
-
-            return Path.GetFileName(path);
-        }
-
-        private static string BuildInjectionScript(List<LocalUserScript> scripts)
-        {
-            var builder = new StringBuilder();
-            builder.Append("(function(){");
-            builder.Append("if(!/^https?:\\/\\/(www\\.)?twitch\\.tv\\//i.test(location.href)){return;}");
-            builder.Append("if(window.__twitchPinLocalUserScriptsLoaded){return;}");
-            builder.Append("window.__twitchPinLocalUserScriptsLoaded=true;");
-            foreach (var script in scripts)
-            {
-                builder.Append("\ntry{\n");
-                builder.Append(script.Source);
-                builder.Append("\n}catch(error){console.error('TwitchPin local userscript failed: ");
-                builder.Append(JavaScriptString(script.Name));
-                builder.Append("',error);}\n");
-            }
-
-            builder.Append("})();");
-            return builder.ToString();
-        }
-
-        private static string JavaScriptString(string value)
-        {
-            return (value ?? String.Empty)
-                .Replace("\\", "\\\\")
-                .Replace("'", "\\'")
-                .Replace("\r", "\\r")
-                .Replace("\n", "\\n");
-        }
-
-        private sealed class LocalUserScript
-        {
-            public LocalUserScript(string name, string source)
-            {
-                Name = name;
-                Source = source;
-            }
-
-            public string Name { get; private set; }
-
-            public string Source { get; private set; }
         }
     }
 
@@ -2148,83 +1812,10 @@ namespace TwitchPinLauncher
         }
     }
 
-    internal sealed class ExtensionPageForm : Form
-    {
-        private readonly string targetUrl;
-        private readonly WebView2 webView;
-        private bool navigated;
-
-        public ExtensionPageForm(string targetUrl)
-        {
-            this.targetUrl = targetUrl;
-            Text = Program.AppDisplayName + " - Tampermonkey";
-            StartPosition = FormStartPosition.CenterParent;
-            Width = 1100;
-            Height = 760;
-            MinimumSize = new Size(760, 520);
-
-            webView = new WebView2
-            {
-                Dock = DockStyle.Fill
-            };
-            Controls.Add(webView);
-        }
-
-        protected override async void OnShown(EventArgs e)
-        {
-            base.OnShown(e);
-            if (navigated)
-            {
-                return;
-            }
-
-            navigated = true;
-            try
-            {
-                var environment = await WebViewEnvironment.GetAsync();
-                await webView.EnsureCoreWebView2Async(environment);
-                await BrowserExtensionLoader.TryLoadTampermonkeyAsync(webView.CoreWebView2.Profile);
-                webView.CoreWebView2.Navigate(targetUrl);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Tampermonkey 視窗初始化失敗。\n\n" + ex.Message, Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                webView.Dispose();
-            }
-
-            base.Dispose(disposing);
-        }
-    }
-
     internal static class BrowserExtensionLoader
     {
         private static readonly object Sync = new object();
         private static Task<List<BrowserExtensionLoadInfo>> loadTask;
-
-        public static Task<string> TryLoadTampermonkeyAsync(CoreWebView2Profile profile)
-        {
-            if (profile == null)
-            {
-                return Task.FromResult<string>(null);
-            }
-
-            lock (Sync)
-            {
-                if (loadTask == null)
-                {
-                    loadTask = LoadAllAsync(profile);
-                }
-
-                return FindExtensionIdAsync(loadTask, "Tampermonkey");
-            }
-        }
 
         public static Task<List<BrowserExtensionLoadInfo>> TryLoadAllAsync(CoreWebView2Profile profile)
         {
@@ -2282,57 +1873,10 @@ namespace TwitchPinLauncher
             return builder.ToString();
         }
 
-        public static TampermonkeyManifestInfo ReadTampermonkeyManifestInfo()
-        {
-            var extensionPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Extensions", "Tampermonkey");
-            var manifestPath = Path.Combine(extensionPath, "manifest.json");
-            if (!File.Exists(manifestPath))
-            {
-                return new TampermonkeyManifestInfo(0, "options.html");
-            }
-
-            try
-            {
-                var json = File.ReadAllText(manifestPath, Encoding.UTF8);
-                var version = 0;
-                var versionMatch = Regex.Match(json, @"""manifest_version""\s*:\s*(\d+)", RegexOptions.IgnoreCase);
-                if (versionMatch.Success)
-                {
-                    Int32.TryParse(versionMatch.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out version);
-                }
-
-                var optionsPage = MatchJsonString(json, @"""options_page""\s*:\s*""([^""]+)""");
-                if (String.IsNullOrWhiteSpace(optionsPage))
-                {
-                    optionsPage = MatchJsonString(json, @"""options_ui""\s*:\s*\{[\s\S]*?""page""\s*:\s*""([^""]+)""");
-                }
-
-                return new TampermonkeyManifestInfo(version, String.IsNullOrWhiteSpace(optionsPage) ? "options.html" : optionsPage);
-            }
-            catch
-            {
-                return new TampermonkeyManifestInfo(0, "options.html");
-            }
-        }
-
         private static string MatchJsonString(string json, string pattern)
         {
             var match = Regex.Match(json, pattern, RegexOptions.IgnoreCase);
             return match.Success ? Regex.Unescape(match.Groups[1].Value) : null;
-        }
-
-        private static async Task<string> FindExtensionIdAsync(Task<List<BrowserExtensionLoadInfo>> task, string name)
-        {
-            var loaded = await task;
-            foreach (var extension in loaded)
-            {
-                if (String.Equals(extension.Name, name, StringComparison.OrdinalIgnoreCase))
-                {
-                    return extension.Id;
-                }
-            }
-
-            return null;
         }
 
         private static async Task<List<BrowserExtensionLoadInfo>> LoadAllAsync(CoreWebView2Profile profile)
@@ -2478,25 +2022,6 @@ namespace TwitchPinLauncher
         public string DirectoryName { get; private set; }
 
         public string Path { get; private set; }
-    }
-
-    internal sealed class TampermonkeyManifestInfo
-    {
-        public TampermonkeyManifestInfo(int manifestVersion, string optionsPage)
-        {
-            ManifestVersion = manifestVersion;
-            OptionsPage = String.IsNullOrWhiteSpace(optionsPage) ? "options.html" : optionsPage.Trim();
-        }
-
-        public int ManifestVersion { get; private set; }
-
-        public string OptionsPage { get; private set; }
-
-        public string BuildExtensionUrl(string extensionId)
-        {
-            var page = OptionsPage.TrimStart('/');
-            return String.Format(CultureInfo.InvariantCulture, "chrome-extension://{0}/{1}", extensionId, page);
-        }
     }
 
     internal sealed class TrayApplicationContext : ApplicationContext

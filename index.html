@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Twitch 追台工具 v0.10.0</title>
+  <title>Twitch 追台工具 v0.11.0</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
       <header class="app-header">
         <div class="app-mark" aria-hidden="true">T</div>
         <div>
-          <h1>Twitch 追台工具 <span class="version-badge">v0.10.0</span></h1>
+          <h1>Twitch 追台工具 <span class="version-badge">v0.11.0</span></h1>
           <p>一次追多個台主，未開台自動隱藏，開台後再顯示。</p>
         </div>
       </header>
@@ -107,26 +107,6 @@
         </div>
       </section>
 
-      <section class="panel" aria-labelledby="tampermonkey-title">
-        <div class="panel-heading">
-          <h2 id="tampermonkey-title">Tampermonkey</h2>
-        </div>
-
-        <div class="button-row">
-          <button id="openTampermonkeyDashboardButton" class="button button-secondary" type="button">檢查狀態</button>
-        </div>
-
-        <label class="field">
-          <span>安裝腳本網址</span>
-          <input id="userscriptUrlInput" type="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/script.user.js">
-        </label>
-
-        <div class="button-row">
-          <button id="installUserscriptButton" class="button button-primary" type="button">開啟安裝頁</button>
-        </div>
-        <p class="helper-text">需先將解壓縮的 Tampermonkey 放到 dist\Extensions\Tampermonkey，且第一層要有 manifest.json。WebView2 可載入擴充功能，但 Microsoft Edge 會封鎖 chrome-extension 內部管理頁；請使用 .user.js 腳本網址開啟安裝頁。請只安裝你信任的腳本。</p>
-      </section>
-
       <section class="panel" aria-labelledby="extensions-title">
         <div class="panel-heading">
           <h2 id="extensions-title">擴充功能</h2>
@@ -138,19 +118,6 @@
           <button id="extensionsStatusButton" class="button button-secondary" type="button">檢查狀態</button>
         </div>
         <p class="helper-text">把已解壓縮的擴充功能放到 dist\Extensions\擴充名稱\manifest.json。WebView2 不支援 Chrome Web Store 一鍵安裝，也不能開 chrome-extension 管理頁。</p>
-      </section>
-
-      <section class="panel" aria-labelledby="local-scripts-title">
-        <div class="panel-heading">
-          <h2 id="local-scripts-title">本機腳本</h2>
-        </div>
-
-        <div class="button-row">
-          <button id="openLocalScriptsFolderButton" class="button button-secondary" type="button">開啟資料夾</button>
-          <button id="reloadLocalScriptsButton" class="button button-primary" type="button">重新載入腳本</button>
-          <button id="localScriptsStatusButton" class="button button-secondary" type="button">檢查狀態</button>
-        </div>
-        <p class="helper-text">把 `.user.js` 或 `.js` 放到 dist\Scripts。程式會在 Twitch 原站觀看頁載入時注入腳本；不提供 Tampermonkey 的 GM_* API。</p>
       </section>
 
     </main>

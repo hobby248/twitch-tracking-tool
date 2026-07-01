@@ -4,6 +4,16 @@
 
 格式參考 Keep a Changelog，版本號採語意化版本概念：功能增加升 minor，修正升 patch。
 
+## v0.11.0 - 2026-07-01
+
+### Removed
+- 移除 Tampermonkey 專用設定區塊、安裝入口與狀態檢查。
+- 移除本機腳本載入器、設定區塊與 `Scripts` 建置輸出。
+- 移除輸出資料夾內自動點擊忠誠點寶箱的舊擴充功能殘留。
+
+### Changed
+- WebView2 只保留通用「擴充功能」載入器，掃描 `dist\Extensions\*\manifest.json`。
+
 ## v0.10.0 - 2026-07-01
 
 ### Added

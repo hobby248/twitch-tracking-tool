@@ -41,15 +41,9 @@ const refs = {
   clearTokenButton: document.querySelector("#clearTokenButton"),
   tokenHelper: document.querySelector("#tokenHelper"),
   navigationLockToggle: document.querySelector("#navigationLockToggle"),
-  openTampermonkeyDashboardButton: document.querySelector("#openTampermonkeyDashboardButton"),
-  userscriptUrlInput: document.querySelector("#userscriptUrlInput"),
-  installUserscriptButton: document.querySelector("#installUserscriptButton"),
   openExtensionsFolderButton: document.querySelector("#openExtensionsFolderButton"),
   reloadExtensionsButton: document.querySelector("#reloadExtensionsButton"),
   extensionsStatusButton: document.querySelector("#extensionsStatusButton"),
-  openLocalScriptsFolderButton: document.querySelector("#openLocalScriptsFolderButton"),
-  reloadLocalScriptsButton: document.querySelector("#reloadLocalScriptsButton"),
-  localScriptsStatusButton: document.querySelector("#localScriptsStatusButton"),
   volumeSlider: document.querySelector("#volumeSlider"),
   volumeValue: document.querySelector("#volumeValue"),
   muteButton: document.querySelector("#muteButton"),
@@ -159,20 +153,6 @@ function bindEvents() {
     setNavigationLock(refs.navigationLockToggle.checked);
   });
 
-  refs.openTampermonkeyDashboardButton?.addEventListener("click", () => {
-    postTampermonkeyAction("dashboard");
-  });
-
-  refs.installUserscriptButton?.addEventListener("click", () => {
-    const url = refs.userscriptUrlInput?.value?.trim() || "";
-    if (!url) {
-      toast("請先貼上 .user.js 腳本網址。");
-      return;
-    }
-
-    postTampermonkeyAction("install", url);
-  });
-
   refs.openExtensionsFolderButton?.addEventListener("click", () => {
     postBrowserExtensionAction("open-folder");
   });
@@ -183,18 +163,6 @@ function bindEvents() {
 
   refs.extensionsStatusButton?.addEventListener("click", () => {
     postBrowserExtensionAction("status");
-  });
-
-  refs.openLocalScriptsFolderButton?.addEventListener("click", () => {
-    postLocalUserScriptAction("open-folder");
-  });
-
-  refs.reloadLocalScriptsButton?.addEventListener("click", () => {
-    postLocalUserScriptAction("reload");
-  });
-
-  refs.localScriptsStatusButton?.addEventListener("click", () => {
-    postLocalUserScriptAction("status");
   });
 
   refs.openTwitchLoginButton?.addEventListener("click", () => {
@@ -989,20 +957,6 @@ function postNavigationLockSettings() {
   return true;
 }
 
-function postTampermonkeyAction(action, url = "") {
-  if (!window.chrome?.webview?.postMessage) {
-    toast("目前不是 WebView2 程式環境，無法開啟 Tampermonkey。");
-    return false;
-  }
-
-  window.chrome.webview.postMessage({
-    type: "tampermonkey",
-    action,
-    url,
-  });
-  return true;
-}
-
 function postBrowserExtensionAction(action) {
   if (!window.chrome?.webview?.postMessage) {
     toast("目前不是 WebView2 程式環境，無法操作擴充功能。");
@@ -1011,19 +965,6 @@ function postBrowserExtensionAction(action) {
 
   window.chrome.webview.postMessage({
     type: "browser-extension",
-    action,
-  });
-  return true;
-}
-
-function postLocalUserScriptAction(action) {
-  if (!window.chrome?.webview?.postMessage) {
-    toast("目前不是 WebView2 程式環境，無法操作本機腳本。");
-    return false;
-  }
-
-  window.chrome.webview.postMessage({
-    type: "local-userscript",
     action,
   });
   return true;

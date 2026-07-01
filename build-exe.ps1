@@ -82,13 +82,6 @@ if (Test-Path $extensionsSource) {
   Copy-Item -Path (Join-Path $extensionsSource "*") -Destination $extensionsOut -Recurse -Force
 }
 
-$scriptsSource = Join-Path $root "Scripts"
-if (Test-Path $scriptsSource) {
-  Copy-Item -LiteralPath $scriptsSource -Destination (Join-Path $outDir "Scripts") -Recurse -Force
-} else {
-  New-Item -ItemType Directory -Force -Path (Join-Path $outDir "Scripts") | Out-Null
-}
-
 $fixedRuntimeExe = Get-ChildItem -Path $fixedRuntimeSource -Filter "msedgewebview2.exe" -File -Recurse -ErrorAction SilentlyContinue |
   Select-Object -First 1
 
