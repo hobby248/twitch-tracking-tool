@@ -4,6 +4,21 @@
 
 格式參考 Keep a Changelog，版本號採語意化版本概念：功能增加升 minor，修正升 patch。
 
+## v0.11.2 - 2026-07-01
+
+### Added
+- 設定頁新增「清除快取」按鈕，只清 WebView2 暫存快取。
+
+### Notes
+- 清除快取不會清除 Twitch 登入 Cookie、Local Storage、IndexedDB 或追蹤清單。
+
+## v0.11.1 - 2026-07-01
+
+### Changed
+- 一般建置預設不再打包固定版 WebView2 Runtime，改用電腦已安裝的 Runtime，降低 `dist` 體積。
+- `build-portable.ps1` 仍會明確打包固定版 WebView2 Runtime，用於需要完整可攜資料夾的情境。
+- 程式資料預設改存 `%LOCALAPPDATA%\TwitchPin`，避免 WebView2 快取持續灌大 `dist`；需要可攜資料時可在 exe 同層新增 `portable.flag`。
+
 ## v0.11.0 - 2026-07-01
 
 ### Removed

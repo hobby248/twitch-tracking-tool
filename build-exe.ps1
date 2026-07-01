@@ -1,5 +1,6 @@
 param(
   [string]$OutputDirectory = ".\dist",
+  [switch]$IncludeBundledRuntime,
   [switch]$RequireBundledRuntime
 )
 
@@ -82,10 +83,13 @@ if (Test-Path $extensionsSource) {
   Copy-Item -Path (Join-Path $extensionsSource "*") -Destination $extensionsOut -Recurse -Force
 }
 
-$fixedRuntimeExe = Get-ChildItem -Path $fixedRuntimeSource -Filter "msedgewebview2.exe" -File -Recurse -ErrorAction SilentlyContinue |
-  Select-Object -First 1
+$fixedRuntimeExe = $null
+if (Test-Path $fixedRuntimeSource) {
+  $fixedRuntimeExe = Get-ChildItem -Path $fixedRuntimeSource -Filter "msedgewebview2.exe" -File -Recurse -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+}
 
-if ($fixedRuntimeExe) {
+if ($IncludeBundledRuntime -and $fixedRuntimeExe) {
   if (Test-Path $fixedRuntimeOut) {
     Remove-Item -LiteralPath $fixedRuntimeOut -Recurse -Force
   }
@@ -94,7 +98,16 @@ if ($fixedRuntimeExe) {
   Write-Host "Bundled WebView2 runtime: $fixedRuntimeOut"
   Write-Host "Runtime executable: $($fixedRuntimeExe.FullName)"
 } else {
-  $runtimeMessage = "Bundled WebView2 runtime: not found at $fixedRuntimeSource; app will use installed Runtime."
+  if (Test-Path $fixedRuntimeOut) {
+    Remove-Item -LiteralPath $fixedRuntimeOut -Recurse -Force
+  }
+
+  $runtimeMessage = if ($IncludeBundledRuntime) {
+    "Bundled WebView2 runtime: not found at $fixedRuntimeSource; app will use installed Runtime."
+  } else {
+    "Bundled WebView2 runtime: skipped; app will use installed Runtime."
+  }
+
   if ($RequireBundledRuntime) {
     throw $runtimeMessage
   }

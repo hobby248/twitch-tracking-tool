@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Twitch 追台工具 v0.11.0</title>
+  <title>Twitch 追台工具 v0.11.2</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
       <header class="app-header">
         <div class="app-mark" aria-hidden="true">T</div>
         <div>
-          <h1>Twitch 追台工具 <span class="version-badge">v0.11.0</span></h1>
+          <h1>Twitch 追台工具 <span class="version-badge">v0.11.2</span></h1>
           <p>一次追多個台主，未開台自動隱藏，開台後再顯示。</p>
         </div>
       </header>
@@ -118,6 +118,17 @@
           <button id="extensionsStatusButton" class="button button-secondary" type="button">檢查狀態</button>
         </div>
         <p class="helper-text">把已解壓縮的擴充功能放到 dist\Extensions\擴充名稱\manifest.json。WebView2 不支援 Chrome Web Store 一鍵安裝，也不能開 chrome-extension 管理頁。</p>
+      </section>
+
+      <section class="panel" aria-labelledby="storage-title">
+        <div class="panel-heading">
+          <h2 id="storage-title">資料清理</h2>
+        </div>
+
+        <div class="button-row">
+          <button id="clearCacheButton" class="button button-secondary" type="button">清除快取</button>
+        </div>
+        <p class="helper-text">只清除 WebView2 暫存快取，不清除 Cookies、Local Storage、IndexedDB、Twitch 登入狀態或追蹤清單。</p>
       </section>
 
     </main>

@@ -2,7 +2,7 @@
 
 這是一個 Windows 本機 App。雙擊 `Twitch 追台工具.exe` 後會在系統匣常駐，並開啟獨立 App 視窗。現在版本是「原站播放 + Token 資訊模式」：觀看、登入與忠誠點累積使用 Twitch 原站頁；台主資訊、直播狀態、標題、分類與觀眾數用 Twitch token 查詢。
 
-嚴格來說，Twitch 原站登入、播放和忠誠點累積都需要瀏覽器核心，所以無法做成完全不帶任何 runtime 的純單檔 exe。這個專案支援的是「可攜資料夾版」：exe 旁邊放 `WebView2Runtime` 後，就會優先使用自帶 runtime，而不是依賴使用者電腦已安裝的 WebView2。
+嚴格來說，Twitch 原站登入、播放和忠誠點累積都需要瀏覽器核心，所以無法做成完全不帶任何 runtime 的純單檔 exe。一般建置會使用電腦已安裝的 Microsoft Edge WebView2 Runtime，輸出資料夾會比較小。若要完全可攜，才使用 `build-portable.ps1` 把固定版 `WebView2Runtime` 一起打包。
 
 ## 直接使用 exe
 
@@ -20,15 +20,19 @@ http://localhost:5173/
 
 若 5173 被占用，程式會自動改用後面的可用 port。要關閉程式，請到系統匣的「Twitch 追台工具」圖示按右鍵，選「結束」。
 
-若 `dist\WebView2Runtime\msedgewebview2.exe` 存在，程式會優先使用自帶的 WebView2 Runtime。若沒有這個資料夾，才會改用電腦已安裝的 Microsoft Edge WebView2 Runtime。
+若 `dist\WebView2Runtime\msedgewebview2.exe` 存在，程式會優先使用自帶的 WebView2 Runtime。一般小型版不會包含這個資料夾，會改用電腦已安裝的 Microsoft Edge WebView2 Runtime。
 
-程式資料會優先存在 exe 旁邊：
+程式資料預設存在：
+
+```text
+%LOCALAPPDATA%\TwitchPin
+```
+
+如果需要把登入資料和 WebView2 設定一起放在 exe 旁邊，請在 exe 同層新增空檔案 `portable.flag`，程式才會改用：
 
 ```text
 dist\Data
 ```
-
-如果資料夾沒有寫入權限，才會退回 `%LOCALAPPDATA%\TwitchPin`。
 
 ## 第一次使用
 
@@ -61,6 +65,7 @@ Client ID 不是 Access Token，不能單獨查 Helix API。程式會用 Client 
 - 直播中或清單第一個台主的 Twitch 原站頁面，用於手動領取忠誠點 bonus chest。
 - Drops 庫存頁面，用於手動查看與領取 Drops。
 - 全部追蹤台主的 Twitch 原站頁面。
+- 清除 WebView2 暫存快取；不會清除 Twitch 登入、Local Storage、IndexedDB 或追蹤清單。
 
 若點數不增加，請先按「登入 Twitch 原站」，再按「忠誠點累積模式」，並保持 Twitch 原站分頁播放。
 
@@ -74,7 +79,7 @@ Client ID 不是 Access Token，不能單獨查 Helix API。程式會用 Client 
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build-exe.ps1
 ```
 
-輸出會覆蓋 `dist\Twitch 追台工具.exe`，並保留一份相容用的 `dist\TwitchPin.exe`。
+輸出會覆蓋 `dist\Twitch 追台工具.exe`，並保留一份相容用的 `dist\TwitchPin.exe`。一般建置不會打包 `WebView2Runtime`，因此 `dist` 會維持小型輸出。
 
 WebView2 SDK DLL 會從這裡引用：
 
@@ -139,6 +144,12 @@ dist\WebView2Runtime\...\msedgewebview2.exe
 ```
 
 整個 `dist` 資料夾要一起帶走，不能只拿單一 exe。
+
+可攜資料夾版若要把資料也留在 exe 旁邊，請自行新增：
+
+```text
+dist\portable.flag
+```
 
 ## 備用網頁模式
 

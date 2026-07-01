@@ -44,6 +44,7 @@ const refs = {
   openExtensionsFolderButton: document.querySelector("#openExtensionsFolderButton"),
   reloadExtensionsButton: document.querySelector("#reloadExtensionsButton"),
   extensionsStatusButton: document.querySelector("#extensionsStatusButton"),
+  clearCacheButton: document.querySelector("#clearCacheButton"),
   volumeSlider: document.querySelector("#volumeSlider"),
   volumeValue: document.querySelector("#volumeValue"),
   muteButton: document.querySelector("#muteButton"),
@@ -163,6 +164,12 @@ function bindEvents() {
 
   refs.extensionsStatusButton?.addEventListener("click", () => {
     postBrowserExtensionAction("status");
+  });
+
+  refs.clearCacheButton?.addEventListener("click", () => {
+    if (window.confirm("確定要清除 WebView2 暫存快取？這不會清除 Twitch 登入或追蹤清單。")) {
+      postCacheAction("clear");
+    }
   });
 
   refs.openTwitchLoginButton?.addEventListener("click", () => {
@@ -967,6 +974,20 @@ function postBrowserExtensionAction(action) {
     type: "browser-extension",
     action,
   });
+  return true;
+}
+
+function postCacheAction(action) {
+  if (!window.chrome?.webview?.postMessage) {
+    toast("目前不是 WebView2 程式環境，無法清除快取。");
+    return false;
+  }
+
+  window.chrome.webview.postMessage({
+    type: "cache-action",
+    action,
+  });
+  toast("正在清除快取...");
   return true;
 }
 

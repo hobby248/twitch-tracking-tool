@@ -21,7 +21,7 @@ namespace TwitchPinLauncher
     internal static class Program
     {
         internal const string AppName = "Twitch 追台工具";
-        internal const string AppVersion = "v0.11.0";
+        internal const string AppVersion = "v0.11.2";
         internal const string AppDisplayName = AppName + " " + AppVersion;
         private const string MutexName = "TwitchPinLauncher.SingleInstance";
         private static SynchronizationContext uiContext;
@@ -169,21 +169,27 @@ namespace TwitchPinLauncher
 
         private static string ResolveWritableDataDirectory()
         {
+            var localDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TwitchPin");
+            var portableFlag = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "portable.flag");
             var portableDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
-            try
+
+            if (File.Exists(portableFlag))
             {
-                Directory.CreateDirectory(portableDir);
-                var probe = Path.Combine(portableDir, ".write-test");
-                File.WriteAllText(probe, "ok", Encoding.UTF8);
-                File.Delete(probe);
-                return portableDir;
+                try
+                {
+                    Directory.CreateDirectory(portableDir);
+                    var probe = Path.Combine(portableDir, ".write-test");
+                    File.WriteAllText(probe, "ok", Encoding.UTF8);
+                    File.Delete(probe);
+                    return portableDir;
+                }
+                catch
+                {
+                }
             }
-            catch
-            {
-                var localDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TwitchPin");
-                Directory.CreateDirectory(localDir);
-                return localDir;
-            }
+
+            Directory.CreateDirectory(localDir);
+            return localDir;
         }
 
         private static bool TryRequestExistingInstanceWindow(string url)
@@ -504,6 +510,14 @@ namespace TwitchPinLauncher
                 return;
             }
 
+            string cacheAction;
+            if (TryParseCacheActionMessage(json, out cacheAction))
+            {
+                var cacheTask = HandleCacheActionAsync(cacheAction);
+                GC.KeepAlive(cacheTask);
+                return;
+            }
+
             bool lockEnabled;
             if (TryParseNavigationLockSettings(json, out lockEnabled))
             {
@@ -529,6 +543,34 @@ namespace TwitchPinLauncher
 
             var updateTask = UpdateViewerGridAsync(channels);
             GC.KeepAlive(updateTask);
+        }
+
+        private async Task HandleCacheActionAsync(string action)
+        {
+            if (!String.Equals(action, "clear", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            try
+            {
+                viewerEnvironment = viewerEnvironment ?? await WebViewEnvironment.GetAsync();
+                if (settingsWebView.CoreWebView2 == null)
+                {
+                    await settingsWebView.EnsureCoreWebView2Async(viewerEnvironment);
+                }
+
+                var deletedFolders = await WebViewCacheCleaner.ClearCacheAsync(settingsWebView.CoreWebView2.Profile);
+                MessageBox.Show(
+                    "已清除 WebView2 快取。\n\n保留項目：Twitch 登入 Cookie、Local Storage、IndexedDB、追蹤清單。\n清理資料夾：" + deletedFolders,
+                    Program.AppName,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("清除快取失敗。\n\n" + ex.Message, Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private async Task HandleBrowserExtensionActionAsync(string action)
@@ -927,6 +969,23 @@ namespace TwitchPinLauncher
         {
             action = String.Empty;
             if (String.IsNullOrEmpty(json) || json.IndexOf("\"browser-extension\"", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                return false;
+            }
+
+            var actionMatch = Regex.Match(json, "\"action\"\\s*:\\s*\"(?<action>[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"", RegexOptions.IgnoreCase);
+            if (actionMatch.Success)
+            {
+                action = Regex.Unescape(actionMatch.Groups["action"].Value);
+            }
+
+            return action.Length > 0;
+        }
+
+        private static bool TryParseCacheActionMessage(string json, out string action)
+        {
+            action = String.Empty;
+            if (String.IsNullOrEmpty(json) || json.IndexOf("\"cache-action\"", StringComparison.OrdinalIgnoreCase) < 0)
             {
                 return false;
             }
@@ -1764,12 +1823,26 @@ namespace TwitchPinLauncher
     internal static class WebViewEnvironment
     {
         private static Task<CoreWebView2Environment> environmentTask;
+        private static string userDataFolder;
+
+        public static string UserDataFolder
+        {
+            get
+            {
+                if (userDataFolder == null)
+                {
+                    userDataFolder = Path.Combine(Program.AppDataDirectory, "WebView2Profile");
+                }
+
+                return userDataFolder;
+            }
+        }
 
         public static Task<CoreWebView2Environment> GetAsync()
         {
             if (environmentTask == null)
             {
-                var userData = Path.Combine(Program.AppDataDirectory, "WebView2Profile");
+                var userData = UserDataFolder;
                 Directory.CreateDirectory(userData);
                 var options = new CoreWebView2EnvironmentOptions("--autoplay-policy=no-user-gesture-required --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --disable-features=CalculateNativeWinOcclusion,IntensiveWakeUpThrottling")
                 {
@@ -1809,6 +1882,63 @@ namespace TwitchPinLauncher
             }
 
             return null;
+        }
+    }
+
+    internal static class WebViewCacheCleaner
+    {
+        private static readonly string[] CacheFolderRelativePaths = new[]
+        {
+            @"EBWebView\Default\Cache",
+            @"EBWebView\Default\Code Cache",
+            @"EBWebView\Default\GPUCache",
+            @"EBWebView\Default\DawnGraphiteCache",
+            @"EBWebView\Default\DawnWebGPUCache",
+            @"EBWebView\Default\ShaderCache",
+            @"EBWebView\Default\GrShaderCache",
+            @"EBWebView\Default\Service Worker\CacheStorage"
+        };
+
+        public static async Task<string> ClearCacheAsync(CoreWebView2Profile profile)
+        {
+            if (profile == null)
+            {
+                throw new InvalidOperationException("WebView2 Profile 尚未初始化。");
+            }
+
+            await profile.ClearBrowsingDataAsync(CoreWebView2BrowsingDataKinds.DiskCache | CoreWebView2BrowsingDataKinds.CacheStorage);
+
+            var deleted = new List<string>();
+            var userDataFolder = WebViewEnvironment.UserDataFolder;
+            foreach (var relativePath in CacheFolderRelativePaths)
+            {
+                if (TryDeleteCacheFolder(userDataFolder, relativePath))
+                {
+                    deleted.Add(relativePath);
+                }
+            }
+
+            return deleted.Count == 0 ? "WebView2 API" : String.Join(", ", deleted.ToArray());
+        }
+
+        private static bool TryDeleteCacheFolder(string userDataFolder, string relativePath)
+        {
+            try
+            {
+                var root = Path.GetFullPath(userDataFolder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                var target = Path.GetFullPath(Path.Combine(userDataFolder, relativePath));
+                if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !Directory.Exists(target))
+                {
+                    return false;
+                }
+
+                Directory.Delete(target, true);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 

@@ -9,7 +9,7 @@ if ($RuntimeSource) {
   & "$PSScriptRoot\prepare-webview2-runtime.ps1" -Source $RuntimeSource
 }
 
-& "$PSScriptRoot\build-exe.ps1" -OutputDirectory $OutputDirectory -RequireBundledRuntime
+& "$PSScriptRoot\build-exe.ps1" -OutputDirectory $OutputDirectory -IncludeBundledRuntime -RequireBundledRuntime
 
 $outDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot $OutputDirectory))
 $runtimeRoot = Join-Path $outDir "WebView2Runtime"
