@@ -6,7 +6,7 @@ Windows 多台直播追蹤工具，支援自由排版、觀看時間統計、開
 
 [下載最新版](https://github.com/hobby248/twitch-tracking-tool/releases/latest)
 
-目前版本：v1.2.8。請下載 `Twitch-Tracking-Tool-v1.2.8-Windows-x64.zip`，完整解壓後執行 `Twitch 追台工具.exe`，保留同目錄的其他檔案與資料夾。
+目前版本：v1.2.9。請下載 `Twitch-Tracking-Tool-v1.2.9-Windows-x64.zip`，完整解壓後執行 `Twitch 追台工具.exe`，保留同目錄的其他檔案與資料夾。
 
 需使用 Windows 10／11（64 位元），並安裝 Microsoft Edge WebView2 Runtime。
 
@@ -20,6 +20,8 @@ Windows 多台直播追蹤工具，支援自由排版、觀看時間統計、開
 
 ## 更新
 
-本版需手動下載完整包，不適用舊版程式內的自動更新。先從系統匣結束舊版，再解壓新版；不要刪除原有資料或自訂快取目錄。
+已有程式內更新功能的版本，可在設定按「檢查更新」，或開啟「自動更新」（預設關閉）。更新會重新啟動並短暫中斷播放，保留登入、追蹤清單、觀看紀錄及現有擴充功能；擴充功能不會隨程式更新包新增或升級。
+
+初次安裝或沒有更新功能的舊版，請下載完整包。手動更新前先從系統匣結束舊版，不要刪除原有資料或自訂快取目錄。
 
 發布包不包含個人 Access Token、Cookie、追蹤清單或測試快取。內建的 Twitch Client ID 為共用公開識別碼，並非個人 Token。
